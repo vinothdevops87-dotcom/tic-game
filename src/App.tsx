@@ -18,7 +18,6 @@ function App() {
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'draw'>('playing');
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
   const [playWithAI, setPlayWithAI] = useState(false);
-  const [isAIThinking, setIsAIThinking] = useState(false);
 
   // Check for winner or draw
   useEffect(() => {
@@ -58,9 +57,7 @@ function App() {
 
   // Handle AI move after player move
   useEffect(() => {
-    if (playWithAI && !xIsNext && gameStatus === 'playing' && !isAIThinking) {
-      setIsAIThinking(true);
-      
+    if (playWithAI && !xIsNext && gameStatus === 'playing') {
       // Simulate thinking delay for better UX
       const timer = setTimeout(() => {
         const aiMove = getAIMove(board);
@@ -70,12 +67,11 @@ function App() {
           setBoard(newBoard);
           setXIsNext(true);
         }
-        setIsAIThinking(false);
       }, 500);
       
       return () => clearTimeout(timer);
     }
-  }, [xIsNext, board, playWithAI, gameStatus, isAIThinking]);
+  }, [xIsNext, board, playWithAI, gameStatus]);
 
   // Handle square click
   const handleClick = (index: number) => {
@@ -98,7 +94,6 @@ function App() {
     setXIsNext(true);
     setGameStatus('playing');
     setWinningLine(null);
-    setIsAIThinking(false);
   };
 
   // Reset all stats
@@ -120,7 +115,7 @@ function App() {
       return "It's a draw!";
     } else {
       if (playWithAI) {
-        return isAIThinking ? 'AI is thinking...' : xIsNext ? 'Your turn (X)' : "AI's turn (O)";
+        return xIsNext ? 'Your turn (X)' : "AI's turn (O)";
       }
       return `Next player: ${xIsNext ? 'X' : 'O'}`;
     }
