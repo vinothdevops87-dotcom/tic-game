@@ -63,7 +63,3 @@ jobs:
           filename: "react_changed_files.zip"
           title: "React Changed Files for PR #${{ github.event.pull_request.number }}"
           initial-comment: "Attached are only the React files changed in this PR."
-          file-path: "react_changed_files.zip"
-          filename: "react_changed_files.zip"
-          title: "React Changed Files for PR #${{ github.event.pull_request.number }}"
-          initial-comment: "Attached are only the React files changed in this PR."
