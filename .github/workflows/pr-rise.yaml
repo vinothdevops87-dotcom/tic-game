@@ -30,7 +30,8 @@ jobs:
 
           gh api repos/$REPO/pulls/$PR/files --jq '.[].filename' > all_files.txt
 
-          echo "React extensions only:" > react_files.txt
+          # Filter only React-related extensions
+          : > react_files.txt
           while read file; do
             case "$file" in
               *.js|*.jsx|*.ts|*.tsx|*.css|*.scss|*.json|*.html)
@@ -40,91 +41,40 @@ jobs:
           done < all_files.txt
 
           echo "Filtered React Files:"
-          cat react_files.txt
+          cat react_files.txt || true
 
-      # 4️⃣ Zip only React files
+          # Set output flag if we have any React files
+          if [ -s react_files.txt ]; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 4️⃣ Zip only React files (runs only if we have files)
       - name: Zip React Files
+        if: steps.changed.outputs.has_files == 'true'
         run: |
-          mkdir react_files
+          mkdir -p react_files
           while read file; do
-            mkdir -p "react_files/$(dirname $file)"
+            mkdir -p "react_files/$(dirname "$file")"
             cp "$file" "react_files/$file" || echo "skip $file"
           done < react_files.txt
 
           zip -r react_changed_files.zip react_files
 
-      # 5️⃣ Upload ZIP to Slack (NO curl)
+      # 5️⃣ Upload ZIP to Slack (NO curl, only if files exist)
       - name: Upload ZIP to Slack
+        if: steps.changed.outputs.has_files == 'true'
         uses: slackapi/slack-github-action@v1.27.0
         with:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
-          slack-token: ${{ secrets.SLACK_TOKEN }}
+          slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
           file-path: "react_changed_files.zip"
           filename: "react_changed_files.zip"
           title: "React Changed Files for PR #${{ github.event.pull_request.number }}"
           initial-comment: "Attached are only the React files changed in this PR."
-name: PR React Files → Zip → Slack Upload
 
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-permissions:
-  contents: read
-  pull-requests: read
-
-jobs:
-  send-zip-to-slack:
-    runs-on: ubuntu-latest
-
-    steps:
-      # 1️⃣ Checkout
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # 2️⃣ Install GitHub CLI
-      - name: Install GitHub CLI
-        uses: cli/cli@v2
-
-      # 3️⃣ Get changed files
-      - name: Get Changed Files
-        id: changed
-        run: |
-          PR="${{ github.event.pull_request.number }}"
-          REPO="${{ github.repository }}"
-
-          gh api repos/$REPO/pulls/$PR/files --jq '.[].filename' > all_files.txt
-
-          echo "React extensions only:" > react_files.txt
-          while read file; do
-            case "$file" in
-              *.js|*.jsx|*.ts|*.tsx|*.css|*.scss|*.json|*.html)
-                echo "$file" >> react_files.txt
-                ;;
-            esac
-          done < all_files.txt
-
-          echo "Filtered React Files:"
-          cat react_files.txt
-
-      # 4️⃣ Zip only React files
-      - name: Zip React Files
-        run: |
-          mkdir react_files
-          while read file; do
-            mkdir -p "react_files/$(dirname $file)"
-            cp "$file" "react_files/$file" || echo "skip $file"
-          done < react_files.txt
-
-          zip -r react_changed_files.zip react_files
-
-      # 5️⃣ Upload ZIP to Slack (NO curl)
-      - name: Upload ZIP to Slack
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
-          slack-token: ${{ secrets.SLACK_TOKEN }}
-          file-path: "react_changed_files.zip"
-          filename: "react_changed_files.zip"
-          title: "React Changed Files for PR #${{ github.event.pull_request.number }}"
-          initial-comment: "Attached are only the React files changed in this PR."
+      # 6️⃣ Info log when no React files changed
+      - name: No React files changed
+        if: steps.changed.outputs.has_files != 'true'
+        run: echo "No React-related files changed in this PR. Skipping ZIP + Slack upload."
